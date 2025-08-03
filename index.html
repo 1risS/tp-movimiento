@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TikTok Event Annotator</title>
+  <style>
+    :root {
+      font-family: system-ui, sans-serif;
+      color-scheme: light dark;
+    }
+
+    body {
+      margin: 1rem auto;
+      max-width: 1100px;
+      line-height: 1.4;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .main {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+      flex-direction: row;
+    }
+
+    video {
+      width: 100%;
+      height: auto;
+      max-height: 90vh;
+      background: #000;
+    }
+
+    .video-container {
+      flex: 1 1 50%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .table-container {
+      flex: 1 1 50%;
+      overflow-y: auto;
+      max-height: 90vh;
+      border: 1px solid #8883;
+      border-radius: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    th,
+    td {
+      border: 1px solid #8883;
+      padding: 0.3rem 0.5rem;
+      text-align: left;
+    }
+
+    tbody tr:hover {
+      background: #8881;
+    }
+
+    code {
+      background: #8882;
+      padding: 0.1rem 0.2rem;
+      border-radius: 3px;
+    }
+
+    .btn {
+      padding: 0.35rem 0.65rem;
+      border: 1px solid #8885;
+      border-radius: 4px;
+      cursor: pointer;
+      background: #eee;
+      color: #111;
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .grow {
+      flex: 1 1 auto;
+    }
+
+    .danger {
+      color: #b00;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      font-family: monospace;
+      font-size: 0.9rem;
+    }
+
+    details summary {
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1 class="grow">TikTok Event Annotator</h1>
+    <label class="btn" for="videoFile">Load video…</label>
+    <input id="videoFile" type="file" accept="video/*" class="hidden" />
+  </header>
+
+  <div class="main">
+    <div class="video-container">
+      <video id="player" controls></video>
+
+      <section class="row" style="margin-top: .5rem;">
+        <button class="btn" data-ev="scroll_new_video">scroll_new_video (1)</button>
+        <button class="btn" data-ev="dubious_scroll">dubious_scroll (2)</button>
+        <button class="btn" data-ev="like_video">like_video (3)</button>
+        <button class="btn" id="undoBtn">Undo / delete last (Z / Backspace)</button>
+        <button class="btn" id="clearBtn" title="Remove ALL events">Clear</button>
+        <span class="grow"></span>
+        <button class="btn" id="exportBtn" title="Download CSV (E)">Export CSV</button>
+        <label class="btn" for="importFile">Import CSV…</label>
+        <input id="importFile" type="file" accept=".csv,text/csv" class="hidden" />
+      </section>
+
+      <details>
+        <summary>Keyboard shortcuts</summary>
+        <ul>
+          <li><code>1</code>: scroll_new_video</li>
+          <li><code>2</code>: dubious_scroll</li>
+          <li><code>3</code>: like_video</li>
+          <li><code>Z</code> or <code>Backspace</code>: undo / delete last</li>
+          <li><code>E</code>: export CSV</li>
+          <li><code>Space</code>: default video play/pause</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="table-container">
+      <table id="eventsTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>t (s)</th>
+            <th>t (hh:mm:ss.ms)</th>
+            <th>event</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const LS_KEY = 'tiktok_event_annotator_v1';
+      const DEFAULT_EVENTS = [
+        'scroll_new_video',
+        'dubious_scroll',
+        'like_video'
+      ];
+
+      const player = document.getElementById('player');
+      const videoFile = document.getElementById('videoFile');
+      const tb = document.querySelector('#eventsTable tbody');
+      const exportBtn = document.getElementById('exportBtn');
+      const importFile = document.getElementById('importFile');
+      const undoBtn = document.getElementById('undoBtn');
+      const clearBtn = document.getElementById('clearBtn');
+
+      let events = [];
+
+      function pad(n, w = 2) { return n.toString().padStart(w, '0'); }
+      function fmtTime(t) {
+        const ms = Math.round((t % 1) * 1000);
+        const total = Math.floor(t);
+        const s = total % 60;
+        const m = Math.floor(total / 60) % 60;
+        const h = Math.floor(total / 3600);
+        return `${pad(h)}:${pad(m)}:${pad(s)}.${ms.toString().padStart(3, '0')}`;
+      }
+
+      function render() {
+        tb.innerHTML = '';
+        events
+          .slice()
+          .sort((a, b) => a.t - b.t)
+          .forEach((e, i) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+          <td>${i + 1}</td>
+          <td>${e.t.toFixed(3)}</td>
+          <td>${fmtTime(e.t)}</td>
+          <td>${e.event}</td>
+          <td><button class="btn danger" data-del="${i}">✕</button></td>
+        `;
+            tb.appendChild(tr);
+          });
+        // Auto-scroll to bottom
+        tb.parentElement.scrollTop = tb.parentElement.scrollHeight;
+      }
+
+      function save() {
+        try {
+          localStorage.setItem(LS_KEY, JSON.stringify({ events }));
+        } catch (e) { console.warn('LocalStorage save failed', e); }
+      }
+
+      function load() {
+        try {
+          const s = localStorage.getItem(LS_KEY);
+          if (!s) return;
+          const obj = JSON.parse(s);
+          if (obj && Array.isArray(obj.events)) {
+            events = obj.events.map(x => ({ t: +x.t, event: String(x.event) }));
+          }
+        } catch (e) { console.warn('LocalStorage load failed', e); }
+      }
+
+      function addEvent(evName) {
+        const t = player.currentTime || 0;
+        events.push({ t, event: evName });
+        save();
+        render();
+      }
+
+      function undo() {
+        events.pop();
+        save();
+        render();
+      }
+
+      function toCSV() {
+        const rows = [['timestamp', 'event']];
+        const sorted = events.slice().sort((a, b) => a.t - b.t);
+        for (const e of sorted) {
+          rows.push([e.t.toFixed(3), e.event]);
+        }
+        return rows.map(r => r.join(',')).join('\n');
+      }
+
+      function fromCSV(text) {
+        const lines = text.split(/\r?\n/).filter(Boolean);
+        if (lines.length === 0) return [];
+        const header = lines[0].split(',').map(s => s.trim());
+        const tIdx = header.indexOf('timestamp');
+        const eIdx = header.indexOf('event');
+        if (tIdx === -1 || eIdx === -1) {
+          alert('CSV must have headers: timestamp,event');
+          return [];
+        }
+        const out = [];
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',');
+          const t = parseFloat(cols[tIdx]);
+          const ev = cols[eIdx].trim();
+          if (!isFinite(t) || !ev) continue;
+          out.push({ t, event: ev });
+        }
+        return out;
+      }
+
+      document.querySelectorAll('button[data-ev]').forEach(btn => {
+        btn.addEventListener('click', () => addEvent(btn.getAttribute('data-ev')));
+      });
+
+      tb.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-del]');
+        if (!btn) return;
+        const idx = parseInt(btn.getAttribute('data-del'), 10);
+        if (!Number.isInteger(idx)) return;
+        const sorted = events.slice().sort((a, b) => a.t - b.t);
+        const toRemove = sorted[idx];
+        const origIdx = events.indexOf(toRemove);
+        if (origIdx >= 0) {
+          events.splice(origIdx, 1);
+          save();
+          render();
+        }
+      });
+
+      undoBtn.addEventListener('click', () => undo());
+
+      clearBtn.addEventListener('click', () => {
+        if (confirm('Delete ALL events?')) {
+          events = [];
+          save();
+          render();
+        }
+      });
+
+      exportBtn.addEventListener('click', () => {
+        const csv = toCSV();
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'events.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+
+      importFile.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const text = await file.text();
+        const parsed = fromCSV(text);
+        if (parsed.length) {
+          events = parsed;
+          save();
+          render();
+        } else {
+          alert('No rows imported.');
+        }
+        importFile.value = '';
+      });
+
+      videoFile.addEventListener('change', () => {
+        const file = videoFile.files[0];
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        player.src = url;
+        player.play();
+      });
+
+      window.addEventListener('keydown', (e) => {
+        const tag = (e.target.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea') return;
+
+        if (e.key === '1') { addEvent(DEFAULT_EVENTS[0]); e.preventDefault(); }
+        else if (e.key === '2') { addEvent(DEFAULT_EVENTS[1]); e.preventDefault(); }
+        else if (e.key === '3') { addEvent(DEFAULT_EVENTS[2]); e.preventDefault(); }
+        else if (e.key.toLowerCase() === 'z' || e.key === 'Backspace') { undo(); e.preventDefault(); }
+        else if (e.key.toLowerCase() === 'e') { exportBtn.click(); e.preventDefault(); }
+      });
+
+      load();
+      render();
+    })();
+  </script>
+</body>
+
+</html>
