@@ -418,21 +418,21 @@ void executeDubious()
     {
     case 0:
       // Step 1: Y 150, Z 146
-      myservo_y.write(150);
-      myservo_z.write(146);
-      Serial.println("Dubious Step 1: Y=150, Z=146");
+      myservo_y.write(145);
+      myservo_z.write(122);
+      Serial.println("Dubious Step 1");
       break;
     case 1:
       // Step 2: Y 134, Z 140
-      myservo_y.write(134);
-      myservo_z.write(140);
-      Serial.println("Dubious Step 2: Y=134, Z=140");
+      myservo_y.write(125);
+      myservo_z.write(122);
+      Serial.println("Dubious Step 2");
       break;
     case 2:
       // Step 3: Y 130, Z 125
-      myservo_y.write(130);
-      myservo_z.write(125);
-      Serial.println("Dubious Step 3: Y=130, Z=125");
+      myservo_y.write(122);
+      myservo_z.write(106);
+      Serial.println("Dubious Step 3");
       break;
     case 3:
       // Step 4: wait some ms (random between 500-2000ms)
@@ -456,9 +456,9 @@ void executeDubious()
       }
     case 4:
       // Step 5: Y 133, Z 144
-      myservo_y.write(133);
-      myservo_z.write(144);
-      Serial.println("Dubious Step 5: Y=133, Z=144");
+      myservo_y.write(122);
+      myservo_z.write(134);
+      Serial.println("Dubious Step 5");
       break;
     case 5:
       // Step 6: wait some ms (random between 500-2000ms)
@@ -481,10 +481,16 @@ void executeDubious()
         return; // Still waiting
       }
     case 6:
+      // Step 6: Y 130, Z 127
+      myservo_y.write(122);
+      myservo_z.write(106);
+      Serial.println("Dubious Step 6");
+      break;
+    case 7:
       // Step 7: Y 136, Z 127
-      myservo_y.write(136);
-      myservo_z.write(127);
-      Serial.println("Dubious Step 7: Y=136, Z=127");
+      myservo_y.write(145);
+      myservo_z.write(122);
+      Serial.println("Dubious Step 7");
       Serial.println("Dubious movement complete!");
       Serial.println("Knob control permanently disabled.");
       dubious_active = false;
