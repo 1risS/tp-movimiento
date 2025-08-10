@@ -32,12 +32,12 @@ int like_step = 0;
 int dubious_step = 0;
 unsigned long last_step_time = 0;
 // const unsigned long scroll_step_delays[] = {100, 150, 200, 200}; // Individual delays for each scroll step
-const unsigned long scroll_step_delays[] = {200, 300, 300, 100, 200}; // Individual delays for each scroll step
-const unsigned long like_step_delay = 100;                            // ms between steps for Like
-const unsigned long dubious_step_delay = 200;                         // ms between steps for Dubious
-const unsigned long dubious_wait_min = 500;                           // minimum wait time for dubious
-const unsigned long dubious_wait_max = 2000;                          // maximum wait time for dubious
-unsigned long dubious_wait_time = 0;                                  // current wait time for dubious steps
+const unsigned long scroll_step_delays[] = {200, 300, 300, 0, 200}; // Individual delays for each scroll step
+const unsigned long like_step_delay = 100;                          // ms between steps for Like
+const unsigned long dubious_step_delay = 200;                       // ms between steps for Dubious
+const unsigned long dubious_wait_min = 500;                         // minimum wait time for dubious
+const unsigned long dubious_wait_max = 2000;                        // maximum wait time for dubious
+unsigned long dubious_wait_time = 0;                                // current wait time for dubious steps
 
 // Smooth servo movement variables
 int current_y = 180, current_z = 0; // Current servo positions
@@ -296,15 +296,15 @@ void executeScroll()
     switch (scroll_step)
     {
     case 0:
-      smoothMoveServos(142, 136, scroll_step_delays[scroll_step]);
+      smoothMoveServos(142, 142, scroll_step_delays[scroll_step]);
       Serial.println("Scroll Step 1");
       break;
     case 1:
-      smoothMoveServos(105, 136, scroll_step_delays[scroll_step]);
+      smoothMoveServos(110, 142, scroll_step_delays[scroll_step]);
       Serial.println("Scroll Step 2");
       break;
     case 2:
-      smoothMoveServos(100, 100, scroll_step_delays[scroll_step]);
+      smoothMoveServos(90, 100, scroll_step_delays[scroll_step]);
       Serial.println("Scroll Step 3");
       break;
     case 3:
@@ -342,7 +342,7 @@ void executeLike()
       break;
     case 1:
       // Step 2: First press
-      myservo_y.write(105);
+      myservo_y.write(120);
       delay(100);
       Serial.println("Like Step 2: Y=130, Z=128");
       break;
@@ -353,7 +353,7 @@ void executeLike()
       break;
     case 3:
       // Step 4: Second press
-      myservo_y.write(105);
+      myservo_y.write(120);
       delay(100);
       Serial.println("Like Step 4: Y=130, Z=128");
       break;
@@ -668,15 +668,8 @@ void loop()
   // Execute like movement if active
   if (like_active)
   {
-    // Use SMM variant selection if SMM mode is active, otherwise use executeLike
-    // if (smm_mode_active && use_like2_variant)
-    // {
-    executeLike2();
-    // }
-    // else
-    // {
-    // executeLike();
-    // }
+    // executeLike2();
+    executeLike();
     return; // Skip potentiometer control during like
   }
 
